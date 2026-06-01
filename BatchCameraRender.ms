@@ -1,10 +1,11 @@
 macroScript BatchCameraRender
-  category:"Sergo Pogosyan"
+  category:"Kasymov Islombek"
   toolTip:""
   buttonText:"BatchCam"
 
 -- Batch Camera Render, maxscript tool for batch rendering in 3ds max
 -- Copyright (C) 2009-2025, Sergo Pogosyan
+-- Modified 2025, Kasymov Islombek
 -- 
 -- This program is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU General Public License
@@ -24,6 +25,7 @@ macroScript BatchCameraRender
 ------------------------------------------------------------------------------
 -- BatchCameraRender.ms
 -- By Sergo Pogosyan (www.sergepogosyan.com, contact@sergepogosyan.com)
+-- Modified by Kasymov Islombek
 -- Created On: 2009-05-25
 -- tested using Max 2009-2025
 -------------------------------------------------------------------------------
@@ -1273,9 +1275,9 @@ include @"BatchCameraRender-functions-preparing.ms"
   rollout aboutRoll "About"
   (
     label lb_about ""
-    label lb_author "(C) 2009-2016, Sergo Pogosyan"
-    hyperLink lb_email "contact@sergepogosyan.com" address:"mailto:contact@sergepogosyan.com" align:#center
-    hyperLink lb_homepage "www.sergepogosyan.com" address:"http://www.sergepogosyan.com" align:#center
+    label lb_author "(C) 2009-2025, Sergo Pogosyan | Modified by Kasymov Islombek"
+    hyperLink lb_email "" address:"" align:#center visible:false
+    hyperLink lb_homepage "" address:"" align:#center visible:false
     edittext license_text "" height:180 align:#center labelOnTop:true readOnly:true text:\
 @"This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
