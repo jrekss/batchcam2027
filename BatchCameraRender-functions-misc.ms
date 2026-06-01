@@ -41,61 +41,10 @@ fn CompileDotNet src =
 	)
 )
 
-fn CreateNativeWindowOps =
-(
-  local source ="
-  using System;
-  using System.Windows.Forms;
-  public class WindowHook : NativeWindow
-  {
-    private const int WM_COMMAND = 0x0111;
-
-    public event EventHandler WmCommand;
-
-    protected override void WndProc(ref Message m)
-    {
-      switch (m.Msg)
-      {
-        case WM_COMMAND:
-        this.ReleaseHandle();
-        if (this.WmCommand != null) this.WmCommand(this, EventArgs.Empty);
-        break;
-      }
-      base.WndProc(ref m);
-    }
-  }
-  "
-  CompileDotNet source
-)
-
-fn CreatePostNotifier =
-(
-  local source = "
-  using System;
-  using System.Windows.Forms;
-  using System.Threading;
-  public class PostNotifier
-  {
-    public event EventHandler PostEvent;
-    public void PostNotify() {
-      SynchronizationContext.Current.Post(delegate(object x) { if (this.PostEvent != null) this.PostEvent(this, EventArgs.Empty); }, null);
-      //SynchronizationContext.Current.Post(delegate(object x) { Application.RaiseIdle(EventArgs.Empty); }, null);
-    }
-  }"
-
-  CompileDotNet source
-)
-
-isVrayRenderer
 fn shouldBeSaved =
 (
   local result = false
-
-  if (isVrayRenderer()) then
-    result = (not batchCamPreview) and (Render_Output_Rollout.save_file.checked or Vray_Settings_Rollout.save_vray_image_file.checked)
-  else
-    result = (not batchCamPreview) and (Render_Output_Rollout.save_file.checked)
-
+  result = (not batchCamPreview) and (Render_Output_Rollout.save_file.checked)
   result
 )
 
@@ -184,7 +133,6 @@ fn isNotUndefined var =
 (
   result = true
   if var != undefined and var != "undefined" and var != "" then
---  if (isNotUndefinedOrEmpty var) and var != "undefined" then
     result = true
   else
     result = false
@@ -195,7 +143,6 @@ fn isUndefined var =
 (
   result = true
   if var == undefined or var == "undefined" or var == "" then
---  if (not isNotUndefinedOrEmpty var)  or var == "undefined" then
     result = true
   else
     result = false
@@ -212,27 +159,6 @@ fn get_render_preset_array =
   render_preset_array
 )
 
-fn get_scene_state_array =
-(
-  scenestate_count = sceneStateMgr.GetCount()
-  scenestate_array = for i=1 to scenestate_count collect ((sceneStateMgr.GetSceneState i) as string)
-  sort scenestate_array
-  scenestate_array
-)
-
-fn get_state_sets_array =
-(
-  local stateSetsDotNetObject = dotNetObject "Autodesk.Max.StateSets.Plugin"
-  local stateSets = stateSetsDotNetObject.Instance
-  local masterState = stateSets.EntityManager.RootEntity.MasterStateSet
-  local statesList = dotnetobject "System.Collections.Generic.List`1[[Autodesk.Max.StateSets.Entities.StateSets.StateSet, Autodesk.Max.StateSets, Version=19.51.835.0, Culture=neutral, PublicKeyToken=null]]"
-  masterState.CollectDescendantStateSets statesList
-  local scenestate_count = masterState.DescendantStateCount
-  local scenestate_array = for i=1 to scenestate_count where not (statesList.item[i-1].IsObjectStateSet) collect ((statesList.item[i-1].Name) as string)
-  sort scenestate_array
-  scenestate_array
-)
-
 struct BatchCameraRenderParamsStruct
 (
     BatchCameraRender_frames,
@@ -245,33 +171,10 @@ struct BatchCameraRenderParamsStruct
     BatchCameraRender_elements_state,
     BatchCameraRender_not_save_elements,
     BatchCameraRender_elements_output,
-    BatchCameraRender_solo_lights,
-    BatchCameraRender_on_lights,
-    BatchCameraRender_off_lights,
-    BatchCameraRender_scene_state,
     BatchCameraRender_render_preset,
-    BatchCameraRender_irmap_mode,
-    BatchCameraRender_auto_save_irmap,
-    BatchCameraRender_auto_switch_irmap,
-    BatchCameraRender_irmap_read_file,
-    BatchCameraRender_irmap_save_file,
-    BatchCameraRender_lcmap_mode,
-    BatchCameraRender_auto_save_lcmap,
-    BatchCameraRender_auto_switch_lcmap,
-    BatchCameraRender_lcmap_read_file,
-    BatchCameraRender_lcmap_save_file,
-    BatchCameraRender_prerender_script,
-    BatchCameraRender_prerender_enabled,
-    BatchCameraRender_postrender_script,
-    BatchCameraRender_postrender_enabled,
     BatchCameraRender_image_aspect,
-    BatchCameraRender_region_enabled,
-    BatchCameraRender_region_x,
-    BatchCameraRender_region_y,
-    BatchCameraRender_region_w,
-    BatchCameraRender_region_h,
-    BatchCameraRender_perCameraScriptEnable,
-    BatchCameraRender_perCameraScript
+    BatchCameraRender_lastRenderPath,
+    BatchCameraRender_item_index
 )
 --function to save variable to ini file
 fn saveVar2IniFile section_name var_name var_value local_path: =
@@ -315,25 +218,7 @@ fn propName2Id property_name =
     "BatchCameraRender_elements_state":     property_id = 7808
     "BatchCameraRender_not_save_elements":	property_id = 78081
     "BatchCameraRender_elements_output":    property_id = 7809
-    "BatchCameraRender_solo_lights":        property_id = 7810
-    "BatchCameraRender_on_lights":          property_id = 7811
-    "BatchCameraRender_off_lights":         property_id = 7812
-    "BatchCameraRender_scene_state":        property_id = 7813
     "BatchCameraRender_render_preset":      property_id = 7814
-    "BatchCameraRender_irmap_mode":       property_id = 7815
-    "BatchCameraRender_auto_save_irmap":    property_id = 7816
-    "BatchCameraRender_auto_switch_irmap":  property_id = 7817
-    "BatchCameraRender_irmap_read_file":      property_id = 7818
-    "BatchCameraRender_irmap_save_file":      property_id = 7819
-    "BatchCameraRender_lcmap_mode":       property_id = 7820
-    "BatchCameraRender_auto_save_lcmap":    property_id = 7821
-    "BatchCameraRender_auto_switch_lcmap":  property_id = 7822
-    "BatchCameraRender_lcmap_read_file":      property_id = 7823
-    "BatchCameraRender_lcmap_save_file":    property_id = 7824
-    "BatchCameraRender_prerender_script":   property_id = 7825
-    "BatchCameraRender_prerender_enabled":    property_id = 7826
-    "BatchCameraRender_postrender_script":    property_id = 7827
-    "BatchCameraRender_postrender_enabled": property_id = 7828
     "BatchCameraRender_image_aspect":     property_id = 7829
 
     "BatchCameraRender_UserKey1":         property_id = 7830
@@ -347,23 +232,9 @@ fn propName2Id property_name =
     "BatchCameraRender_bbJobName":        property_id = 7836
     "BatchCameraRender_elementName":      property_id = 7837
 
-    "BatchCameraRender_OnSubmitScriptEnable": property_id = 7838
-    "BatchCameraRender_OnSubmitScript":       property_id = 7839
-    "BatchCameraRender_perCameraScriptEnable":  property_id = 7840
-    "BatchCameraRender_perCameraScript":      property_id = 7841
-
     "BatchCameraRender_lastRenderPath":   property_id = 7842
 
-    "BatchCameraRender_vray_ortho_mode":    property_id = 7844
     "BatchCameraRender_item_index":   property_id = 7845
-
-    "BatchCameraRender_region_enabled":   property_id = 7846
-    "BatchCameraRender_region_x":   property_id = 7847
-    "BatchCameraRender_region_y":   property_id = 7848
-    "BatchCameraRender_region_w":   property_id = 7849
-    "BatchCameraRender_region_h":   property_id = 7850
-
-    "BatchCameraRender_state_set":    property_id = 7851
   )
   property_id
 )
@@ -371,7 +242,6 @@ fn propName2Id property_name =
 -- setUserProp function wrapper to set dirty flag everytime user properties are affected by script
 fn setUserProperty list_item property_name property_value=
 (
---  format "obj_itself:% property_name:% property_value:%\n" obj_itself property_name property_value
   setAppData (list_item.tag.value) (propName2Id property_name) (property_value as string)
   setSaveRequired true --set dirt flag after setting each user property
 )
@@ -466,34 +336,20 @@ fn getPresetName preset_obj =
 --parser function
 --replaces special keywords in string with values from argument dictionary
 --dictionary syntax is (keyword, value)
---sample dictionary:
-/* param_dictionary = #(
-  #("cameraname", "CAMERANAME"),
-  #("scenestate", "SCENESTATE"),
-  #("resolution", "RESOLUTION"),
-  #("date", "DATE"),
-  #("var:varname", "VARNAME"),
-  #("scenename", "SCENENAME")
-  #("projectfolder", "PROJECTNAME")
-) */
 fn do_modify in_string replace_start replace_end replace_text=
 (
   keyword = (substring in_string replace_start replace_end)
---  format "keyword: %\n" keyword
   if keyword == "%up%" then
   (
     --handle %up% keyword
     --remove leaf from the path to point it to upper folder
     currentPath = substring in_string 1 (replace_start - 1)
---    format "currentPath: %\n" currentPath
     if ((pathConfig.isLegalPath currentPath) and (not (pathConfig.isRootPath currentPath))) do
       currentPath = pathConfig.removePathLeaf currentPath     --replace old path with new, truncated one.
     in_string = currentPath + (substring in_string (replace_start + keyword.count) -1)
---    format "in_string: %, currentPath: %\n" in_string currentPath
   )
   else
   (
---    format "in_string: %, replace_text: %\n" in_string replace_text
     in_string = replace in_string replace_start replace_end replace_text  --replace keyword with word from dictionary
   )
   in_string
@@ -519,7 +375,6 @@ fn parse_file_name_template input_string dictionary =
         (
           found_count += 1
           keyword = substring keyword_substring 1 (keyword_end-1) --exclude the keyword - since we using substring here, keyword is always as start of the string
---          format "keyword: %\n" keyword
 
           --replace keyword with actual value
           --get keywords and values from argument dictionary
@@ -529,7 +384,6 @@ fn parse_file_name_template input_string dictionary =
             if keyword == dictionary[i][1] then
             (
               was_found = true  --set flag to true if keyword is found
---              format "string: %, keyword: % \n" result_substring dictionary[i][2]
               result_substring = do_modify result_substring keyword_start (keyword_end+1) dictionary[i][2]  --replace keyword with word from dictionary
             )
           )
@@ -542,19 +396,15 @@ fn parse_file_name_template input_string dictionary =
         else
         (
           found_any = false --exit loop if end of keyword not found
-          -- here delete trailing %-char
-          --add template error warning
         )
     )
     else
     (
       found_any = false
     )
---    format "i_emergency: %\n" i_emergency
   )
   while (found_any and not i_emergency > 100 )  --proceed with the loop until start or end are found
                                 --or more then 100 "%" characters found
---  print result_substring
   result_substring
 )
 
@@ -579,18 +429,18 @@ fn compose_user_dictionary =
 (
   parsing_dictionary = #()
     --user-defined keywords
-  userKeyword = getRootNodeData "BatchCameraRender_UserKey1"-- getAppData rootnode (propName2Id "BatchCameraRender_UserKey1")
-  userValue = getRootNodeData "BatchCameraRender_UserVal1" --getAppData rootnode (propName2Id "BatchCameraRender_UserKey1")
+  userKeyword = getRootNodeData "BatchCameraRender_UserKey1"
+  userValue = getRootNodeData "BatchCameraRender_UserVal1"
   if isNotUndefinedOrEmpty userKeyword then
     append parsing_dictionary #( (userKeyword as string), (exec_user_val userValue) )
 
-  userKeyword = getRootNodeData "BatchCameraRender_UserKey2"-- getAppData rootnode (propName2Id "BatchCameraRender_UserKey1")
-  userValue = getRootNodeData "BatchCameraRender_UserVal2" --getAppData rootnode (propName2Id "BatchCameraRender_UserKey1")
+  userKeyword = getRootNodeData "BatchCameraRender_UserKey2"
+  userValue = getRootNodeData "BatchCameraRender_UserVal2"
   if isNotUndefinedOrEmpty userKeyword then
     append parsing_dictionary #( (userKeyword as string), (exec_user_val userValue) )
 
-  userKeyword = getRootNodeData "BatchCameraRender_UserKey3"-- getAppData rootnode (propName2Id "BatchCameraRender_UserKey1")
-  userValue = getRootNodeData "BatchCameraRender_UserVal3" --getAppData rootnode (propName2Id "BatchCameraRender_UserKey1")
+  userKeyword = getRootNodeData "BatchCameraRender_UserKey3"
+  userValue = getRootNodeData "BatchCameraRender_UserVal3"
   if isNotUndefinedOrEmpty userKeyword then
     append parsing_dictionary #( (userKeyword as string), (exec_user_val userValue) )
 
@@ -622,7 +472,6 @@ fn compose_global_dictionary =
   append parsing_dictionary #("scenefolder", scenepath_string)
   append parsing_dictionary #("scenepath", scenepath_string)
   append parsing_dictionary #("up", "") --added to dictionary just to have parsing function call do_modify method - this keyword handling happens there.
-  append parsing_dictionary #("trynum", (Net_Render_Options_Rollout.Try_Counter.value) as string)
 
   parsing_dictionary
 )
@@ -651,10 +500,6 @@ fn compose_parsing_dictionary camera_obj extraItems: =
   append parsing_dictionary #("presetname", preset_name)
   local cam_obj = getCameraFromCA camera_obj
   append parsing_dictionary #("cameraname", ((cam_obj.name) as string))
-  --scenestate keyword
-  append parsing_dictionary #("scenestate", ((batchCameraRender_getUserProperty camera_obj "BatchCameraRender_scene_state") as string))
-  --state_sets
-  append parsing_dictionary #("stateset", ((batchCameraRender_getUserProperty camera_obj "BatchCameraRender_state_set") as string))
   --renderpreset keyword
   append parsing_dictionary #("renderpreset", ((batchCameraRender_getUserProperty camera_obj "BatchCameraRender_render_preset") as string))
   --resolution keyword
@@ -663,7 +508,6 @@ fn compose_parsing_dictionary camera_obj extraItems: =
   resolution_string = (xres_prop as string + "x" + yres_prop as string )
   append parsing_dictionary #("resolution", resolution_string)
 
---  print parsing_dictionary
   parsing_dictionary
 )
 
@@ -749,7 +593,6 @@ fn getDefaultFrameRangeValue camera_object property_name =
 fn getDefaultValue camera_object property_name =
 (
   result_value = undefined
-  global_found_ini_file_paths = #()
   --try to find local ini file recursively starting from scene folder and down to root folder.
   --check each file if it contains default value
   --if none of them contains default value, fall to the global ini file
@@ -762,7 +605,6 @@ fn getDefaultValue camera_object property_name =
       localINI_file = pathConfig.appendPath localINI_path "BatchCameraRender.ini"
       if (doesFileExist localINI_file) then
       (
-        appendIfUnique global_found_ini_file_paths localINI_file
         result_value = loadVarFromIniFile "Default Settings" property_name local_path:localINI_path
         if (isNotUndefined result_value) then
           found_value = true
@@ -776,7 +618,6 @@ fn getDefaultValue camera_object property_name =
   else
     result_value = loadVarFromIniFile "Default Settings" property_name
 
-  Net_Render_Options_Rollout.found_local_ini_files.items = global_found_ini_file_paths
   result_value
 )
 
@@ -805,8 +646,6 @@ fn getUserProperty camera_object property_name=
 )
 batchCameraRender_getUserProperty = getUserProperty
 
--- batchCameraRender_getRootNodeData = getRootNodeData
-
 fn saveDefaultValues camera_object property_names =
 (
   try
@@ -824,12 +663,6 @@ fn saveDefaultValues camera_object property_names =
   )
 )
 
---returns true if current renderer is Vray
-fn isVrayRenderer =
-(
-  (findString ((classof (renderers.current)) as string) "v_ray") != undefined
-)
-
 fn isPathAbsolute path_string =
 (
   pathConfig.isUncPath path_string or  pathConfig.isPathRootedAtDriveLetter path_string
@@ -840,28 +673,22 @@ fn render_buttons_active state =
 (
   --main section
   batchCameraRender_mainRollOut.render_start.enabled = state
-  batchCameraRender_mainRollOut.net_render.enabled = state
-  batchCameraRender_mainRollOut.show_net_submit.enabled = \
-    batchCameraRender_mainRollOut.net_render.checked and batchCameraRender_mainRollOut.net_render.enabled
 )
 
 --function to switch window element's activity state
 fn elements_active state =
 (
-  -- stack showLocals:false firstFrameOnly:false excludeOwner:true
   batchCameraRender_mainRollOut.select_camera.enabled = state
   batchCameraRender_mainRollOut.set_viewport.enabled = state
   batchCameraRender_mainRollOut.check_selected.enabled = state
 
   if (batchCameraRender_mainRollOut.lv_objects.SelectedItems.Count == 1) then
   (
-    Net_Render_Options_Rollout.save_all_as_default.enabled = true
     batchCameraRender_mainRollOut.copy_button.enabled = true
     batchCameraRender_mainRollOut.add_button.enabled = ((superclassof (batchCameraRender_mainRollOut.lv_objects.SelectedItems.Item[0].tag.value) == camera))
   )
   else
   (
-    Net_Render_Options_Rollout.save_all_as_default.enabled = false
     batchCameraRender_mainRollOut.copy_button.enabled = false
     batchCameraRender_mainRollOut.add_button.enabled = false
   )
@@ -881,23 +708,6 @@ fn elements_active state =
   for control_element in Render_Output_Rollout.controls do
     control_element.enabled = state
 
-  --vray settings section
-  if isVrayRenderer() then
-  (
-    for control_element in Vray_Settings_Rollout.controls do
-    (
-      control_element.enabled = state
-    )
-    Vray_Settings_Rollout.save_vray_image_file.enabled = Vray_Settings_Rollout.save_separate_render_channels.enabled = Vray_Settings_Rollout.show_vray_vfb.checked and state
-  )
-  else
-    for control_element in Vray_Settings_Rollout.controls do
-      control_element.enabled = false
-
-  --lights section
-  for control_element in Light_Assignement_Rollout.controls do
-    control_element.enabled = state
-
   --frame range section
   for control_element in Frame_Range_Rollout.controls do
     control_element.enabled = state
@@ -907,16 +717,6 @@ fn elements_active state =
     control_element.enabled = state
   if Output_Size_Rollout.lock_aspect.checked then
     Output_Size_Rollout.image_aspect_spinner.enabled = false
-
-  --scene state section
-  for control_element in Scene_States_Rollout.controls do
-  (
-    case (control_element.name) of
-    (
-      "state_sets_list":  control_element.enabled  = state and (dotnetclass "Autodesk.Max.StateSets.Plugin" != undefined)
-      default:    control_element.enabled = state
-    )
-  )
 )
 
 --function to set all elements "enabled" state depending on list item's selection
@@ -935,7 +735,6 @@ fn ui_elements_refresh listview_obj =
       case (control_element.name) of
       (
         "Refresh":  control_element.enabled = true
-        -- "ADD_BUTTON":      control_element.enabled = true
         default:    control_element.enabled = false
       )
     )
@@ -972,132 +771,6 @@ fn leadingZero num digitCount=
   str
 )
 
-fn submit_to_deadline camera_obj =
-(
-  global SMTDPaths
-  global SMTDSettings
-  global SMTDFunctions
-
-  local theNetworkRoot = Net_Render_Options_Rollout.DeadlineRepo.text
-  local remoteScript = theNetworkRoot + @"\submission\3dsmax\main\SubmitMaxToDeadline_Functions.ms"
-  fileIn remoteScript
-
-  SMTDFunctions.loadSettings()
-
-  local jobName = ""
-  jobNamePattern = Net_Render_Options_Rollout.backburnerJobNamePattern.text
-  if (isNotUndefinedOrEmpty jobNamePattern) then
-    jobName = parse_file_name_template jobNamePattern (compose_full_parsing_dictionary camera_obj)
-  else
-    jobName = (if maxFileName == "" then "untitled" else maxFileName) + " " + camera_obj.name
-
-  SMTDSettings.JobName = jobName
-
-  local maxFileToSubmit = SMTDPaths.tempdir + (if maxFileName == "" then "untitled.max" else maxFileName)
-  SMTDFunctions.SaveMaxFileCopy maxFileToSubmit
-
-  local SubmitInfoFile = SMTDPaths.tempdir + "\\batchcam_submit_info.job"
-  local JobInfoFile = SMTDPaths.tempdir+ "\\batchcam_job_info.job"
-
-  --rendOutputFilename = SMTDFunctions.GetFormattedOutputFilename rendOutputFilename addFramePadding:true stripPaddingNumbers:true addFrameDelimiter:true
-
-  SMTDSettings.SubmitSceneMode = #reposave
-  --SMTDSettings.SubmitSceneMode = #networksave
-  --SMTDSettings.SubmitSceneNetworkLocation = maxFileToSubmit
-
-  SMTDFunctions.CreateSubmitInfoFile SubmitInfoFile batchName:(getFilenameFile (if maxFileName == "" then "Untitled.max" else maxFileName))
-  SMTDFunctions.CreateJobInfoFile JobInfoFile
-
-  local initialArgs="\""+SubmitInfoFile+"\" \""+JobInfoFile+"\" \""+maxFileToSubmit+"\" "
-
-  SMTDFunctions.waitForCommandToComplete initialArgs SMTDSettings.TimeoutSubmission
-)
-
---function to submit current scene to backburner manager
-fn net_render_auto_submit camera_obj =
-(
-  batchManager = NetRender.GetManager() --get NetRender Interface
-  --batchManager.connect #manual <manager IP address> [port:<integer>]
-  --batchManager.connect #automatic <subnet mask> [port:<integer>]
-  --batchManager.connect #manual managerName
-  netrender_port = Net_Render_Options_Rollout.Port.text as integer
-  -- if port edit text contains something not integer then use default port - 3234
-  if netrender_port == undefined then netrender_port = 3234
-  platform_var = if (Net_Render_Options_Rollout.Platform.state == 1) then #32 else #64
-  if not (batchManager.connect (if Net_Render_Options_Rollout.Auto_Search.checked then #automatic else #manual) Net_Render_Options_Rollout.Name_Or_Mask.text port:netrender_port platform:platform_var)
-  then  --throw error to catch at main try block in on_start_render event handler
-    throw ("Failed to connect to manager "+ (Net_Render_Options_Rollout.Name_Or_Mask.text) + " , port:" + (netrender_port as string))
-  else
-  (
-    batchJob = batchManager.NewJob()
-    batchJob.renderCamera = camera_obj.name
-    --if choosen platform is not default reflect this in the job name
-    --since connection to one platform doesn't allow to see existing jobs from another platform this helps to avoid submitting jobs with same name on different platforms
-    platform_string = ""
-    if is64bitApplication() and (platform_var == #32) then platform_string = "-32bit"
-    else if (not is64bitApplication()) and (platform_var == #64) then platform_string = "-64bit"
-
-    --get the jobName template from the options rollout
-    jobNamePattern = Net_Render_Options_Rollout.backburnerJobNamePattern.text
-    if (isNotUndefinedOrEmpty jobNamePattern) then
-    (
---      print "test2"
-      jobName = parse_file_name_template jobNamePattern (compose_full_parsing_dictionary camera_obj)
---      format "jobName: %\n" jobName
-    )
-    else
-      jobName = batchJob.name + " " + batchJob.renderCamera --add camera name
-    jobName += platform_string  -- and platform identifier (if not default) to job name
-
-    nameCounter = 1
-    alreadyHasName = true
-    -- do loop to correctly name render job.
-    -- job names composed of scene name + camera name + counter number.
-    existingJobs = batchManager.getjobs()
-    existingJobNames = for job in existingJobs collect job.name
-    do
-    (
-      tempjobName = jobName + " " + (leadingZero nameCounter ((nameCounter as string).count + 1))
-      jobItem = findItem existingJobNames tempjobName
-      if jobItem == 0 then
-      (
-        alreadyHasName = false
-        batchJob.name = tempjobName
-      )
-      else
-        nameCounter = nameCounter + 1
-    ) while alreadyHasName
-
-  )
-  --set render frames from max render dialog
-  batchJob.nthFrame = rendNThFrame
-  if rendTimeType == 3 then
-  (
-    batchJob.fromFrame = rendStart
-    batchJob.toFrame = rendEnd
-  )
-  else if rendTimeType == 4 then
-  (
-    batchJob.frames = rendPickupFrames
-    batchJob.nonSeqFrames = true
-  )
-  else  --if frame range paramter is undefined then render one current frame
-  (
-    batchJob.fromFrame = currentTime.frame
-    batchJob.toFrame = currentTime.frame
-  )
-
-  local render_servers = #()
-  -- render_servers = batchManager.GetServers filter:#group key:"test_global"
-  -- render_servers = batchManager.GetServers filter:#index key:2
-  render_servers = batchManager.GetServers()
-  local servernames = for i in render_servers collect i.name
-  -- format "servernames:%\n" servernames
-  batchJob.Submit Servers:render_servers
-  -- batchJob.Submit Servers:#(render_servers[1])
-  batchManager.Disconnect()
-)
-
 --returns the array of animation frames from object's
 fn get_key_array obj=
 (
@@ -1107,17 +780,14 @@ fn get_key_array obj=
     if obj.pos.controller.keys.count > 0 then
       frame_array = frame_array + (for i in obj.pos.controller.keys collect i.time)
   catch ()
---  format "frame_array - %\n" frame_array
   try
     if obj.rotation.controller.keys.count > 0 then
       frame_array = frame_array + (for i in obj.rotation.controller.keys collect i.time)
   catch ()
---  format "frame_array - %\n" frame_array
   try
     if obj.scale.controller.keys.count > 0 then
       frame_array = frame_array + (for i in obj.scale.controller.keys collect i.time)
   catch ()
---  format "frame_array - %\n" frame_array
 
   --object properties section
   prop_controller_array = for prop in getPropNames obj where isPropertyAnimatable obj prop collect (getPropertyController obj prop) --get controllers
@@ -1171,73 +841,12 @@ fn get_key_range camera_obj=
   result
 )
 
-fn fill_scripts_columns listview_obj =
-(
-  -- for camera_obj in camera_list do
-  -- (
-  --  listItem = listview_obj.FindItemWithText camera_obj.name
-  local item_count = listview_obj.Items.count
-  for i=0 to item_count - 1 do
-  (
-    local listItem = listview_obj.Items.Item[i]
-    local camera_obj = listitem.tag.value
-    -- sub_item = undefined  --subitem variable
-
-    for property_name in BatchCam_ScriptsPropertiesNames do
-    (
-      --Vray section
-      temp_string = getUserProperty camera_obj ("BatchCameraRender_" + property_name)
-      if isNotUndefined temp_string then
-        add_sub_item listItem (temp_string as string) property_name true
-      else
-        add_sub_item listItem "undefined" property_name false
-      --End of Vray section
-    )
-  )
---  listview_obj.AutoResizeColumns (dotNetClass "System.Windows.Forms.ColumnHeaderAutoResizeStyle").HeaderSize
---  listview_obj.Refresh()
-  --end of adding vray columns to list view
-)
-
-fn fill_vray_columns listview_obj =
-(
-  local item_count = listview_obj.Items.count
-  for i=0 to item_count - 1 do
-  (
-    local listItem = listview_obj.Items.Item[i]
-    local camera_obj = listitem.tag.value
-
-    for property_name in BatchCam_VrayPropertiesNames do
-    (
-      --Vray section
-      temp_string = getUserProperty camera_obj ("BatchCameraRender_" + property_name)
-      if isNotUndefined temp_string then
-      (
-        if property_name == "irmap_mode" then
-          temp_string = BatchCam_Vray_irmap_modes[temp_string as integer]
-        else if property_name == "lcmap_mode" then
-          temp_string = BatchCam_Vray_lcmap_modes[temp_string as integer]
-        add_sub_item listItem (temp_string as string) property_name true
-      )
-      else
-      (
-        add_sub_item listItem "undefined" property_name false
-      )
-      --End of Vray section
-    )
-  )
---  listview_obj.AutoResizeColumns (dotNetClass "System.Windows.Forms.ColumnHeaderAutoResizeStyle").HeaderSize
---  listview_obj.Refresh()
-  --end of adding vray columns to list view
-)
-
 fn fill_ListView listview_obj camera_list =
 (
   --fill in spreadshit dotNet version
   ItemsArray = #() --array to collect the list items
   ItemsIndexArray = #() --array to collect the list items
 
-  -- local preset_index = 0
   for camera_obj in camera_list do
   (
     local preset_name = getPresetName camera_obj
@@ -1317,39 +926,6 @@ fn fill_ListView listview_obj camera_list =
     else
       add_sub_item li "undefined" "elements_path" false
 
-    --get lightstate
-    temp_string = getUserProperty camera_obj "BatchCameraRender_solo_lights"
-    if  isNotUndefined temp_string then
-      add_sub_item li temp_string "solo_lights" true
-    else
-      add_sub_item li "undefined" "solo_lights" false
-
-    temp_string = getUserProperty camera_obj "BatchCameraRender_on_lights"
-    if  isNotUndefined temp_string then
-      add_sub_item li temp_string "on_lights" true
-    else
-      add_sub_item li "undefined" "on_lights" false
-
-    temp_string = getUserProperty camera_obj "BatchCameraRender_off_lights"
-    if  isNotUndefined temp_string then
-      add_sub_item li temp_string "off_lights" true
-    else
-      add_sub_item li "undefined" "off_lights" false
-
-    --scene state part
-    temp_string = getUserProperty camera_obj "BatchCameraRender_scene_state"
-    if  isNotUndefined temp_string then
-      add_sub_item li temp_string "scene_state" true
-    else
-      add_sub_item li "undefined" "scene_state" false
-
-    --state sets part
-    temp_string = getUserProperty camera_obj "BatchCameraRender_state_set"
-    if  isNotUndefined temp_string then
-      add_sub_item li temp_string "state_set" true
-    else
-      add_sub_item li "undefined" "state_set" false
-
     --render preset part
     temp_string = getUserProperty camera_obj "BatchCameraRender_render_preset"
     if isNotUndefined temp_string then
@@ -1418,26 +994,14 @@ fn init_ListView listview_obj camera_list =
 
   listview_obj.Columns.Clear()
 
-  standard_columns = #("Camera", "Frames", "Resolution", "Aspect", "Path", "Elements State", "Elements Path", "Solo Lights", \
-            "Lights On", "Lights Off", "Scene State", "State Set", "Render Preset")
+  standard_columns = #("Camera", "Frames", "Resolution", "Aspect", "Path", "Elements State", "Elements Path", "Render Preset")
   for i in standard_columns do
-    listview_obj.Columns.add i
-
-  vray_columns = #("IRmap mode", "Auto Save IRmap", "Auto Switch IRmap", "IRmap Read File", \
-    "IRmap Save File", "LCmap Mode", "Auto Save LCmap", "Auto Switch LCmap", "LCmap Read File", "LCmap Save File", "Ortho Mode" )
-  for i in vray_columns do
-    listview_obj.Columns.add i
-
-  script_columns = #("Pre-render script", "Pre-render enabled", "Post-render script", "Post-render enabled")
-  for i in script_columns do
     listview_obj.Columns.add i
 
   if camera_list.count > 0 then
   (
     listview_obj.Items.Clear()
     fill_ListView listview_obj camera_list
-    fill_vray_columns listview_obj
-    fill_scripts_columns listview_obj
 
     listview_obj.AutoResizeColumns (dotNetClass "System.Windows.Forms.ColumnHeaderAutoResizeStyle").HeaderSize
     listview_obj.Refresh()
@@ -1469,7 +1033,7 @@ fn init_ListView listview_obj camera_list =
 
 fn batchCameraRender_reset_render_counter=
 (
-  Net_Render_Options_Rollout.Try_Counter.value  = batchCameraRender_RenderCounter = 1
+  -- no-op (Try_Counter removed)
 )
 
 --reload all cameras
@@ -1490,176 +1054,4 @@ fn batchCameraRender_reload_cameras lv_objects =
   --refresh ui elements
   if (lv_objects.items.count == 0) then --only call refresh if empty listview, because init_ListView/fill_ListView will refresh anyway
     ui_elements_refresh lv_objects
-
-  --reload scene states and render presets
-  Scene_States_Rollout.scene_states_list2.Items.Clear()
-  Scene_States_Rollout.scene_states_list2.Items.AddRange (join #("undefined") (get_scene_state_array()))
-  Scene_States_Rollout.render_preset_list.items = join #("undefined") (get_render_preset_array())
-
-  --reload state sets
-  local ss_class = dotnetclass "Autodesk.Max.StateSets.Plugin"
-  if ss_class != undefined then --if state sets supported
-  (
-    Scene_States_Rollout.state_sets_list.items = join #("undefined") (get_state_sets_array())
-  )
-
-  --custom keywords and names
-  if (temp_state = getRootNodeData "BatchCameraRender_UserKey1")  != undefined then
-    Net_Render_Options_Rollout.UserKey1.text= (temp_state as string)
-  if (temp_state = getRootNodeData "BatchCameraRender_UserKey2")  != undefined then
-    Net_Render_Options_Rollout.UserKey2.text= (temp_state as string)
-  if (temp_state = getRootNodeData "BatchCameraRender_UserKey3")  != undefined then
-    Net_Render_Options_Rollout.UserKey3.text= (temp_state as string)
-  if (temp_state = getRootNodeData "BatchCameraRender_UserVal1")  != undefined then
-    Net_Render_Options_Rollout.UserVal1.text= (temp_state as string)
-  if (temp_state = getRootNodeData "BatchCameraRender_UserVal2")  != undefined then
-    Net_Render_Options_Rollout.UserVal2.text= (temp_state as string)
-  if (temp_state = getRootNodeData "BatchCameraRender_UserVal3")  != undefined then
-    Net_Render_Options_Rollout.UserVal3.text= (temp_state as string)
-
-  --custom names
-  if (temp_state = getRootNodeData "BatchCameraRender_bbJobName")  != undefined then
-    Net_Render_Options_Rollout.backburnerJobNamePattern.text= (temp_state as string)
-  if (temp_state = getRootNodeData "BatchCameraRender_elementName")  != undefined then
-    Net_Render_Options_Rollout.renderElementNamePattern.text= (temp_state as string)
-
-  --script sections
-  batchCameraRender_populateScripts()
-)
-
---function to collect all lights in scene
-fn collect_scene_lights =
-(
-  temp_array = #()
-  temp_array = for obj in objects where (iskindof obj DaylightAssemblyHead) or ((iskindof obj light) and not (iskindof obj.parent DaylightAssemblyHead)) collect obj
-  temp_array
-)
-
---functions to switch the lights
-fn switch_lights light_name state =
-(
-  light_obj = getNodeByName light_name
-  if (light_obj != undefined) then --check if light_obj exist in scene
-  (
-    if (iskindof light_obj DaylightAssemblyHead) then --deal with daylight system
-    (
-      temp_sun = light_obj.GetSun()
-      temp_sky = light_obj.GetSky()
-      if temp_sun != undefined then
-      (
-        if hasProperty temp_sun "on" then
-          temp_sun.on = state
-        else if hasProperty temp_sun "enabled" then
-          temp_sun.enabled = state
-      )
-      if temp_sky != undefined then
-        temp_sky.enabled = state
-    )
-    else
-    (
-      if hasProperty light_obj "on" then
-        light_obj.on = state
-      else if hasProperty light_obj "enabled" then
-        light_obj.enabled = state
-      else if hasProperty light_obj "Area_Enable" then  --for MR Lights
-        light_obj.on = state
-    )
-  )
-  else --if doesn't exist
-  (
-    --throw error to catch at main try block in on_start_render event handler
-    throw ("Light \"" + light_name + "\" not found.")
-  )
-)
-
---function to get one light object state
---written to support different light objects
-fn get_light_state light_obj =
-(
-  light_state = false
-  if (iskindof light_obj DaylightAssemblyHead) then --deal with daylight system
-  (
-    sun_state = false
-    sky_state = false
-    temp_sun = light_obj.GetSun()
-    temp_sky = light_obj.GetSky()
-    if temp_sun != undefined then
-    (
-      if hasProperty temp_sun "on" then
-        sun_state = temp_sun.on
-      else if hasProperty temp_sun "enabled" then
-        sun_state = temp_sun.enabled
-    )
-    if temp_sky != undefined then
-      sky_state = temp_sky.enabled
-    light_state = sun_state or sky_state
-  )
-  else
-  (
-    if hasProperty light_obj "on" then
-      light_state = light_obj.on
-    else if hasProperty light_obj "enabled" then
-      light_state = light_obj.enabled
-    else if hasProperty light_obj "Area_Enable" then  --for MR Lights
-      light_state = light_obj.on
-  )
-  return light_state
-)
-
---function to store lighting state in the scene
---stores light state to the 2 dimensional array
-fn store_lighting_state =
-(
-  LIGHTING_STATE = #()
-  local light_state
-  local light_name
-  for light_obj in LIGHT_LIST do
-  (
-    light_state = get_light_state light_obj
-    light_name = light_obj.name
---    format "light_name: % light_state: %\n" light_name light_state
-    one_light_state = #(light_name, light_state)
-    append LIGHTING_STATE one_light_state
-  )
---  format "LIGHTING_STATE: %\n" LIGHTING_STATE
-)
-
---function restore lighting state in the scene
-fn restore_lighting_state =
-(
-  for light_obj in LIGHTING_STATE do
-    switch_lights light_obj[1] light_obj[2]
-)
-
---function to turn on solo lights and switch off all other lights in scene
-fn turn_solo_lights_on solo_lights =
-(
---  format "solo lights: %\n" solo_lights
---  format "LIGHT_LIST: %\n" LIGHT_LIST
-  local light_obj
-  for light_obj in LIGHT_LIST do
-  (
-    if finditem solo_lights light_obj.name == 0 then -- turn off lights that are not in sololight list
---      format "off light %\n" light_obj.name
-      switch_lights light_obj.name false
-  )
-  --now turn lights from sololight list one by one to check their existance in scene
-  for light_name in solo_lights do
-  (
-      switch_lights light_name true
-  )
-)
-
---function to force on lights
-fn force_lights_on forced_on_lights =
-(
-  for light_name in forced_on_lights do
-      switch_lights light_name true
-)
-
---function to force off lights
-fn force_lights_off forced_off_lights =
-(
-  for light_name in forced_off_lights do
-    switch_lights light_name false
 )

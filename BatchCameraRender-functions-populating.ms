@@ -494,11 +494,6 @@ fn populate_framerange cameraItems =
           rendType5.state = 0
         )
       )
-
---      rendType1.state = 0
---      rendType2.state = 0
---      rendType3.state = 0
---      rendType5.state = 0
     )
   )
   else --multiple selection
@@ -628,13 +623,6 @@ fn populate_elements_options cameraItems=
 
 fn populate_filename_fields cameraItems=
 (
-  --get selected items
-  --get filename from one item
-  --split to name and path
-  --compare to UIfield text
-  --if differs then enter "varies" text
-  --go to next item
-
   result_file_name = Render_Output_Rollout.result_file_name
   file_name = Render_Output_Rollout.file_name
   file_path = Render_Output_Rollout.file_path
@@ -727,11 +715,9 @@ fn populate_filename_fields cameraItems=
         templated_diff_flag = true
         path_diff_flag = true
         file_diff_flag = true
-        --put "undefined" text to UI fields
       )
     )
     --set text fields after for loop
---    temp_string = temp_string as string -- as string added in case temp_string is not a string or undefined
     if not parsed_diff_flag then
     (
       --if parsed full paths are similar show all parts
@@ -780,113 +766,6 @@ fn populate_filename_fields cameraItems=
   populate_text_fields cameraItems "lastRenderPath" Render_Output_Rollout.last_render_path
 )
 
-fn populate_light_state cameraItems=
-(
-  lis = cameraItems
-  solo_lights = Light_Assignement_Rollout.light_box_solo
-  on_lights = Light_Assignement_Rollout.light_box_forceon
-  off_lights = Light_Assignement_Rollout.light_box_forceoff
-
-  --exclude selected items
-  local selected_items = #()
-  for i in lis do
-    if i.selected then
-      append selected_items i
-
-  if selected_items.count == 1 then
-  (
-    obj_itself = (selected_items[1]).tag.value
-    temp_string1 = getUserProperty obj_itself "BatchCameraRender_solo_lights"
-    temp_string2 = getUserProperty obj_itself "BatchCameraRender_on_lights"
-    temp_string3 = getUserProperty obj_itself "BatchCameraRender_off_lights"
-    if (isNotUndefined temp_string1) then
-    (
-      temparray = filterString temp_string1 ","
-      solo_lights.items = temparray
-    )
-    else
-    (
-      solo_lights.items = #()
-    )
-    if (isNotUndefined temp_string2) then
-    (
-      temparray = filterString temp_string2 ","
-      on_lights.items = temparray
-    )
-    else
-    (
-      on_lights.items = #()
-    )
-    if (isNotUndefined temp_string3) then
-    (
-      temparray = filterString temp_string3 ","
-      off_lights.items = temparray
-    )
-    else
-    (
-      off_lights.items = #()
-    )
-  )
-)
-
-fn populate_submit_scripts_section=
-(
-  temp_state = getRootNodeData "BatchCameraRender_OnSubmitScriptEnable"
-
-  if isNotUndefinedOrEmpty temp_state then
-    Scripts_Rollout.enable_onsubmit.state = (temp_state as BooleanClass)
-  else
-    Scripts_Rollout.enable_onsubmit.tristate = 2
-
-  temp_state = getRootNodeData "BatchCameraRender_OnSubmitScript"
-
-  if isNotUndefinedOrEmpty temp_state then
-    Scripts_Rollout.onsubmit_script.text = (temp_state as string)
-  else
-    Scripts_Rollout.onsubmit_script.text = "undefined"
-
-  temp_state = getRootNodeData "BatchCameraRender_perCameraScriptEnable"
-
-  if isNotUndefinedOrEmpty temp_state then
-    Scripts_Rollout.enable_percamera_submit.state = (temp_state as BooleanClass)
-  else
-    Scripts_Rollout.enable_percamera_submit.tristate = 2
-
-  temp_state = getRootNodeData "BatchCameraRender_perCameraScript"
-
-  if isNotUndefinedOrEmpty temp_state then
-    Scripts_Rollout.percamera_submit_script.text = (temp_state as string)
-  else
-    Scripts_Rollout.percamera_submit_script.text = "undefined"
-)
-batchCameraRender_populateScripts = populate_submit_scripts_section
-
-
-fn populate_script_rollout selectedItems =
-(
-  populate_text_fields selectedItems "prerender_script" Scripts_Rollout.prerender_script
-  populate_checkbox_item selectedItems "prerender_enabled" Scripts_Rollout.enable_prerender
-  populate_text_fields selectedItems "postrender_script" Scripts_Rollout.postrender_script
-  populate_checkbox_item selectedItems "postrender_enabled" Scripts_Rollout.enable_postrender
-)
---separate function to populate ui elements in vray rollout
-fn populate_vray_options selectedItems =
-(
-  --populate all vray properties for selected items.
-  --don't know if it's right.
-  --may be it would be more usefull to populate only properties that really exist in selected item's camera
-
-  for vray_property in BatchCam_VrayPropertiesMappingArray do
-  (
-    if vray_property.propertyType == "textfield" then
-      populate_text_fields selectedItems vray_property.propertyName vray_property.propertyUIelement
-    if vray_property.propertyType == "checkbox" then
-      populate_checkbox_item selectedItems vray_property.propertyName vray_property.propertyUIelement
-    if vray_property.propertyType == "dropdownlist" then
-      populate_dropdownbox_integer_item selectedItems vray_property.propertyName vray_property.propertyUIelement
-  )
-)
-
 fn populate_resolution_options selectedItems =
 (
   --populate image size fields
@@ -895,18 +774,6 @@ fn populate_resolution_options selectedItems =
   populate_spinner_field selectedItems "image_aspect" Output_Size_Rollout.image_aspect_spinner
   --display selected resolution
   populate_dropdownbox_resolution selectedItems Output_Size_Rollout.out_size_list
-  populate_checkbox_item selectedItems "region_enabled" Output_Size_Rollout.use_region
-  populate_spinner_field selectedItems "region_x" Output_Size_Rollout.region_x
-  populate_spinner_field selectedItems "region_y" Output_Size_Rollout.region_y
-  populate_spinner_field selectedItems "region_w" Output_Size_Rollout.region_w
-  populate_spinner_field selectedItems "region_h" Output_Size_Rollout.region_h
-)
-
-fn populate_scenestate_renderpreset selectedItems =
-(
-  populate_combobox_string_item selectedItems "scene_state" Scene_States_Rollout.scene_states_list2
-  populate_dropdownbox_string_item selectedItems "render_preset" Scene_States_Rollout.render_preset_list
-  populate_dropdownbox_string_item selectedItems "state_set" Scene_States_Rollout.state_sets_list
 )
 
 fn populate_ui_elements selectedItems=
@@ -914,11 +781,7 @@ fn populate_ui_elements selectedItems=
   if selectedItems.count > 0 then
   (
     populate_resolution_options selectedItems
-    populate_scenestate_renderpreset selectedItems
     populate_filename_fields selectedItems
     populate_framerange selectedItems
-    populate_vray_options selectedItems
-    populate_script_rollout selectedItems
-    populate_light_state selectedItems
   )
 )
